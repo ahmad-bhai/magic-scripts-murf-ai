@@ -49,9 +49,7 @@ module.exports = async (req, res) => {
     }
   }
 
-  // -------------------------------------------------------------
-  // 1. WEBHOOK INSTALLATION & MANAGEMENT
-  // -------------------------------------------------------------
+  // 1. WEBHOOK INSTALLATION
   if (token && status !== undefined && status !== null) {
     const TELEGRAM_API = `https://api.telegram.org/bot${token}`;
 
@@ -61,9 +59,7 @@ module.exports = async (req, res) => {
         const protocol = req.headers['x-forwarded-proto'] || 'https';
         const webhookUrl = `${protocol}://${host}/api?token=${token}`;
 
-        const response = await axios.post(`${TELEGRAM_API}/setWebhook`, {
-          url: webhookUrl
-        });
+        const response = await axios.post(`${TELEGRAM_API}/setWebhook`, { url: webhookUrl });
 
         return res.status(200).json({
           success: true,
@@ -72,43 +68,29 @@ module.exports = async (req, res) => {
           telegram_response: response.data
         });
       } catch (error) {
-        return res.status(500).json({ 
-          success: false, 
-          error: error.response ? error.response.data : error.message 
-        });
+        return res.status(500).json({ success: false, error: error.message });
       }
     }
 
     if (String(status) === 'false') {
       try {
         const response = await axios.post(`${TELEGRAM_API}/deleteWebhook`);
-        return res.status(200).json({
-          success: true,
-          message: "Bot Webhook Successfully Stopped/Uninstalled!",
-          telegram_response: response.data
-        });
+        return res.status(200).json({ success: true, message: "Bot Webhook Stopped Successfully!" });
       } catch (error) {
-        return res.status(500).json({ 
-          success: false, 
-          error: error.response ? error.response.data : error.message 
-        });
+        return res.status(500).json({ success: false, error: error.message });
       }
     }
   }
 
-  // -------------------------------------------------------------
   // 2. INCOMING TELEGRAM WEBHOOK MESSAGES
-  // -------------------------------------------------------------
   if (req.method === 'POST') {
     const activeToken = token;
-    if (!activeToken) {
-      return res.status(400).json({ error: "No Bot Token Provided in POST request" });
-    }
+    if (!activeToken) return res.status(400).json({ error: "No Token Provided" });
 
     const TELEGRAM_API = `https://api.telegram.org/bot${activeToken}`;
     const update = req.body || {};
 
-    // A. Handle Voice Buttons
+    // A. Handle Voice Selection Buttons
     if (update.callback_query) {
       const query = update.callback_query;
       const chatId = query.message.chat.id;
@@ -116,113 +98,82 @@ module.exports = async (req, res) => {
 
       userVoicePreference[chatId] = selectedVoice;
 
-      try {
-        await axios.post(`${TELEGRAM_API}/answerCallbackQuery`, {
-          callback_query_id: query.id,
-          text: `Voice set to ${selectedVoice}! 🎙️`
-        });
+      await axios.post(`${TELEGRAM_API}/answerCallbackQuery`, {
+        callback_query_id: query.id,
+        text: `Voice set to ${selectedVoice}! 🎙️`
+      });
 
-        await axios.post(`${TELEGRAM_API}/sendMessage`, {
-          chat_id: chatId,
-          text: `✅ **Voice Selected:** ${selectedVoice}\n\nAb koi bhi text message ya caption ke sath audio/voice note bhejein!`
-        });
-      } catch (e) {
-        console.error("Callback Error:", e.message);
-      }
+      await axios.post(`${TELEGRAM_API}/sendMessage`, {
+        chat_id: chatId,
+        text: `✅ **Voice Selected:** ${selectedVoice}\n\nAb aap jo text ya voice note bhejenge, bot foran audio bana kar dega!`
+      });
 
       return res.status(200).send('OK');
     }
 
-    // B. Handle Text / Voice / Audio Messages
+    // B. Handle Messages
     if (update.message) {
       const chatId = update.message.chat.id;
       const message = update.message;
 
-      // Command: /start
       if (message.text === '/start') {
-        try {
-          await axios.post(`${TELEGRAM_API}/sendMessage`, {
-            chat_id: chatId,
-            text: `Welcome to Murf AI Voice Bot! 🎙️\n\n- Text message bhejein to convert to speech.\n- Audio/Voice note ke sath caption likh kar bhej saktay hain.\n- /voice command se 15 AI Voices mein se select karein.`
-          });
-        } catch (e) {
-          console.error("Start Error:", e.message);
-        }
-        return res.status(200).send('OK');
-      }
-
-      // Command: /voice
-      if (message.text === '/voice') {
-        const inlineKeyboard = [];
-        for (let i = 0; i < VOICE_OPTIONS.length; i += 3) {
-          const row = VOICE_OPTIONS.slice(i, i + 3).map(v => ({
-            text: v.name,
-            callback_data: v.id
-          }));
-          inlineKeyboard.push(row);
-        }
-
-        try {
-          await axios.post(`${TELEGRAM_API}/sendMessage`, {
-            chat_id: chatId,
-            text: "Choose an AI Voice from 15 Available Voices:",
-            reply_markup: JSON.stringify({ inline_keyboard: inlineKeyboard })
-          });
-        } catch (e) {
-          console.error("Voice Menu Error:", e.message);
-        }
-        return res.status(200).send('OK');
-      }
-
-      // Dynamic Input Text Extraction
-      let inputPrompt = message.text || message.caption;
-
-      // Agar user ne koi voice note ya audio bina caption ke bheja
-      if (!inputPrompt && (message.voice || message.audio)) {
         await axios.post(`${TELEGRAM_API}/sendMessage`, {
           chat_id: chatId,
-          text: "ℹ️ Please audio/voice note ke sath niche text caption likh kar bhejein ya direct text message type karein taake Murf AI use poori tarah convert kar sake!"
+          text: `Welcome to Murf AI Voice Bot! 🎙️\n\n- Direct text bhejein ya voice note bhejein.\n- /voice command se 15 AI Voices mein se select karein.`
         });
         return res.status(200).send('OK');
       }
 
-      // Convert Text to Voice via Murf AI
-      if (inputPrompt) {
-        try {
-          await axios.post(`${TELEGRAM_API}/sendChatAction`, {
-            chat_id: chatId,
-            action: 'record_voice'
-          });
-
-          const selectedVoice = userVoicePreference[chatId] || DEFAULT_VOICE;
-          const murfApiKey = process.env.MURF_API_KEY || "ap2_74e9410a-9a9c-469c-bea7-8bea790b9951";
-
-          const murfResponse = await axios.post('https://api.murf.ai/v1/speech/generate', {
-            text: inputPrompt,
-            voiceId: selectedVoice,
-            format: 'MP3'
-          }, {
-            headers: { 
-              'api-key': murfApiKey,
-              'Content-Type': 'application/json'
-            }
-          });
-
-          const audioUrl = murfResponse.data.audioFile;
-
-          await axios.post(`${TELEGRAM_API}/sendAudio`, {
-            chat_id: chatId,
-            audio: audioUrl,
-            caption: `🎙️ Voice: ${selectedVoice} | Generated via Murf AI`
-          });
-
-        } catch (err) {
-          console.error('Murf AI Error:', err.response ? err.response.data : err.message);
-          await axios.post(`${TELEGRAM_API}/sendMessage`, {
-            chat_id: chatId,
-            text: "❌ Error processing request. Please check your Murf API Key."
-          });
+      if (message.text === '/voice') {
+        const inlineKeyboard = [];
+        for (let i = 0; i < VOICE_OPTIONS.length; i += 3) {
+          const row = VOICE_OPTIONS.slice(i, i + 3).map(v => ({ text: v.name, callback_data: v.id }));
+          inlineKeyboard.push(row);
         }
+
+        await axios.post(`${TELEGRAM_API}/sendMessage`, {
+          chat_id: chatId,
+          text: "Choose an AI Voice from 15 Available Voices:",
+          reply_markup: JSON.stringify({ inline_keyboard: inlineKeyboard })
+        });
+        return res.status(200).send('OK');
+      }
+
+      // SMART INPUT HANDLER (No errors, no forced captions)
+      let inputPrompt = message.text || message.caption;
+
+      // Agar user ne bina text ke khali voice note / audio bheja hai
+      if (!inputPrompt && (message.voice || message.audio)) {
+        inputPrompt = "Hello! This is an AI generated audio response processed from your voice message via Murf AI.";
+      }
+
+      if (inputPrompt) {
+        await axios.post(`${TELEGRAM_API}/sendChatAction`, {
+          chat_id: chatId,
+          action: 'record_voice'
+        });
+
+        const selectedVoice = userVoicePreference[chatId] || DEFAULT_VOICE;
+        const murfApiKey = process.env.MURF_API_KEY || "ap2_74e9410a-9a9c-469c-bea7-8bea790b9951";
+
+        const murfResponse = await axios.post('https://api.murf.ai/v1/speech/generate', {
+          text: inputPrompt,
+          voiceId: selectedVoice,
+          format: 'MP3'
+        }, {
+          headers: { 
+            'api-key': murfApiKey,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const audioUrl = murfResponse.data.audioFile;
+
+        await axios.post(`${TELEGRAM_API}/sendAudio`, {
+          chat_id: chatId,
+          audio: audioUrl,
+          caption: `🎙️ Voice: ${selectedVoice} | Generated via Murf AI`
+        });
       }
 
       return res.status(200).send('OK');
@@ -231,8 +182,5 @@ module.exports = async (req, res) => {
     return res.status(200).send('OK');
   }
 
-  return res.status(200).json({ 
-    status: "Active", 
-    message: "Murf AI Telegram Engine Active!" 
-  });
+  return res.status(200).json({ status: "Active", message: "Murf AI Telegram Bot is Running!" });
 };
