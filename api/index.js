@@ -1,7 +1,6 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -12,20 +11,19 @@ module.exports = async (req, res) => {
 
   if (req.method === 'POST') {
     try {
-      const { text, voiceId } = req.body || {};
+      const { audioBase64, voiceId } = req.body || {};
 
-      if (!text) {
+      if (!audioBase64) {
         return res.status(400).json({ 
           success: false, 
-          error: "Text prompt is required for speech generation." 
+          error: "Audio file payload is required!" 
         });
       }
 
       const murfApiKey = process.env.MURF_API_KEY || "ap2_d20159bd-3aba-4def-837e-a884f91ab9b2";
 
-      // Murf AI Text-to-Speech Request
-      const response = await axios.post('https://api.murf.ai/v1/speech/generate', {
-        text: text,
+      const response = await axios.post('https://api.murf.ai/v1/speech/change-voice', {
+        audio: audioBase64,
         voiceId: voiceId || "Priya",
         format: 'MP3'
       }, {
@@ -43,21 +41,24 @@ module.exports = async (req, res) => {
       } else {
         return res.status(500).json({
           success: false,
-          error: "Invalid response received from Murf AI."
+          error: "Failed to convert voice via Murf API."
         });
       }
-
     } catch (error) {
-      console.error("API Error:", error.response ? error.response.data : error.message);
+      const errMessage = error.response && error.response.data 
+        ? JSON.stringify(error.response.data) 
+        : error.message;
+      
+      console.error('API Error:', errMessage);
       return res.status(500).json({
         success: false,
-        error: error.response && error.response.data ? JSON.stringify(error.response.data) : error.message
+        error: errMessage
       });
     }
   }
 
   return res.status(200).json({ 
-    status: "Active", 
-    message: "API endpoint is running successfully!" 
+    success: true, 
+    message: "Voice Changer API Engine Ready!" 
   });
 };
