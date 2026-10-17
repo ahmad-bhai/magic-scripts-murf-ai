@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
         });
       }
 
-      const murfApiKey = process.env.MURF_API_KEY || "ap2_d20159bd-3aba-4def-837e-a884f91ab9b2";
+      const murfApiKey = process.env.MURF_API_KEY || "ap2_74e9410a-9a9c-469c-bea7-8bea790b9951";
 
       const response = await axios.post('https://api.murf.ai/v1/speech/change-voice', {
         audio: audioBase64,
