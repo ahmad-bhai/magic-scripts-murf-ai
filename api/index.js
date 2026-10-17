@@ -10,17 +10,18 @@ module.exports = async (req, res) => {
   }
 
   if (req.method === 'POST') {
-    const { text, voiceId } = req.body || {};
+    const { audioBase64, voiceId } = req.body || {};
 
-    if (!text) {
-      return res.status(400).json({ success: false, error: "Text or script prompt is required!" });
+    if (!audioBase64) {
+      return res.status(400).json({ success: false, error: "Audio file payload is required!" });
     }
 
     const murfApiKey = process.env.MURF_API_KEY || "ap2_d20159bd-3aba-4def-837e-a884f91ab9b2";
 
     try {
-      const response = await axios.post('https://api.murf.ai/v1/speech/generate', {
-        text: text,
+      // Murf AI Speech-to-Speech / Voice Changer API Call
+      const response = await axios.post('https://api.murf.ai/v1/speech/change-voice', {
+        audio: audioBase64,
         voiceId: voiceId || "Priya",
         format: 'MP3'
       }, {
@@ -36,9 +37,13 @@ module.exports = async (req, res) => {
           audioUrl: response.data.audioFile
         });
       } else {
-        return res.status(500).json({ success: false, error: "Invalid response from Murf AI" });
+        return res.status(500).json({
+          success: false,
+          error: "Failed to convert voice via Murf API."
+        });
       }
     } catch (error) {
+      console.error('Murf AI Voice Changer Error:', error.response ? error.response.data : error.message);
       return res.status(500).json({
         success: false,
         error: error.response && error.response.data ? JSON.stringify(error.response.data) : error.message
@@ -46,5 +51,5 @@ module.exports = async (req, res) => {
     }
   }
 
-  return res.status(200).json({ status: "Active", message: "Voice Changer API Running!" });
+  return res.status(200).json({ status: "Active", message: "Voice Changer API Engine Ready!" });
 };
