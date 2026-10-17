@@ -1,0 +1,23 @@
+{
+  "version": "2",
+  "builds": [
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/v/(?<token>[^/]+)/true",
+      "dest": "/api/index.js?action=install&token=$token"
+    },
+    {
+      "src": "/api/(?<token>[^/]+)/false",
+      "dest": "/api/index.js?action=stop&token=$token"
+    },
+    {
+      "src": "/api/webhook/(?<token>[^/]+)",
+      "dest": "/api/index.js?action=webhook&token=$token"
+    }
+  ]
+}
