@@ -116,7 +116,7 @@
       background: #059669;
     }
 
-    /* Custom Dialog Box Styling */
+    /* Custom Dialog Box Styling (No Standard Alert) */
     .modal-overlay {
       position: fixed;
       top: 0;
@@ -244,13 +244,11 @@
       audioTemp.src = URL.createObjectURL(file);
       
       await new Promise((resolve) => {
-        audioTemp.onloadedmetadata = () => {
-          resolve();
-        };
+        audioTemp.onloadedmetadata = () => resolve();
       });
 
-      if (audioTemp.duration > 180) { // 180 seconds = 3 minutes
-        showModal("❌ Audio duration 3 minutes se ziada hai! Baraye meherbani 3 minutes se choti audio upload karein.");
+      if (audioTemp.duration > 180) {
+        showModal("❌ Audio duration 3 minutes se ziada hai! Baraye meherbani choti audio upload karein.");
         return;
       }
 
@@ -266,7 +264,6 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             audioBase64: base64Audio,
-            fileName: file.name,
             voiceId: voiceId
           })
         });
@@ -279,7 +276,7 @@
           outputCard.style.display = "block";
           showModal("✅ Voice kamyabi se change ho gayi hai!");
         } else {
-          showModal("❌ Fail Error: " + (data.error || "Voice convert nahi ho saki. API Key balance verify karein."));
+          showModal("❌ Fail Error: " + (data.error || "Voice convert nahi ho saki."));
         }
       } catch (err) {
         showModal("❌ Server Error: Processing mein masla aaya.");
