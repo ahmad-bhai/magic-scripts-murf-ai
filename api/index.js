@@ -165,4 +165,3 @@ module.exports = async (req, res) => {
   // Fallback Route Response
   return res.status(404).json({ error: "Invalid Endpoint" });
 };
-          
