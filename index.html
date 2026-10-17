@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Voice Changer (Speech-to-Speech)</title>
+  <title>Murf AI Text-to-Speech Generator</title>
   <style>
     * {
       box-sizing: border-box;
@@ -51,7 +51,7 @@
       color: #cbd5e1;
     }
 
-    select, input[type="file"] {
+    textarea, select {
       width: 100%;
       padding: 12px;
       background: #0f172a;
@@ -60,12 +60,17 @@
       color: #fff;
       font-size: 1rem;
       outline: none;
+      transition: 0.3s;
     }
 
-    .info-note {
-      font-size: 0.85rem;
-      color: #94a3b8;
-      margin-top: 5px;
+    textarea:focus, select:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
     }
 
     button {
@@ -158,16 +163,10 @@
 <body>
 
   <div class="container">
-    <h1>🎙️ AI Voice Changer</h1>
+    <h1>🎙️ Murf AI Voice Generator</h1>
 
     <div class="form-group">
-      <label for="audioFile">Upload Audio / Voice Recording:</label>
-      <input type="file" id="audioFile" accept="audio/*">
-      <div class="info-note">⚠️ Maximum limit: 3 Minutes (MP3, WAV, M4A, OGG)</div>
-    </div>
-
-    <div class="form-group">
-      <label for="voiceSelect">Target AI Voice (15 Voices):</label>
+      <label for="voiceSelect">Select AI Voice (15 Voices):</label>
       <select id="voiceSelect">
         <option value="Priya" selected>Priya (Desi / Roman Urdu Female)</option>
         <option value="Aarav">Aarav (Desi / Roman Urdu Male)</option>
@@ -187,13 +186,18 @@
       </select>
     </div>
 
-    <button id="convertBtn" onclick="processVoiceChanger()">Convert Voice 🚀</button>
+    <div class="form-group">
+      <label for="textInput">Enter Script / Text (Urdu, Hindi, English, Roman Urdu):</label>
+      <textarea id="textInput" placeholder="Yahan apna text type karein... (e.g. Assalam-o-Alaikum, kaise hain aap sab?)"></textarea>
+    </div>
+
+    <button id="generateBtn" onclick="generateSpeech()">Generate Speech 🚀</button>
 
     <div class="output-card" id="outputCard">
-      <h3>🎉 Converted Voiceover:</h3>
+      <h3>🎉 Generated Audio:</h3>
       <audio id="audioPlayer" controls></audio>
       <br>
-      <a id="downloadBtn" class="download-btn" download="converted-voice.mp3" target="_blank">Download MP3 📥</a>
+      <a id="downloadBtn" class="download-btn" download="murf-voiceover.mp3" target="_blank">Download MP3 📥</a>
     </div>
   </div>
 
@@ -215,57 +219,28 @@
       document.getElementById('customModal').style.display = 'none';
     }
 
-    function fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = error => reject(error);
-      });
-    }
-
-    async function processVoiceChanger() {
-      const fileInput = document.getElementById('audioFile');
+    async function generateSpeech() {
+      const text = document.getElementById('textInput').value.trim();
       const voiceId = document.getElementById('voiceSelect').value;
-      const btn = document.getElementById('convertBtn');
+      const btn = document.getElementById('generateBtn');
       const outputCard = document.getElementById('outputCard');
       const audioPlayer = document.getElementById('audioPlayer');
       const downloadBtn = document.getElementById('downloadBtn');
 
-      if (!fileInput.files || fileInput.files.length === 0) {
-        showModal("Baraye meherbani audio ya voice file upload karein!");
-        return;
-      }
-
-      const file = fileInput.files[0];
-
-      // Check 3 Minutes Audio Duration Limit
-      const audioTemp = new Audio();
-      audioTemp.src = URL.createObjectURL(file);
-      
-      await new Promise((resolve) => {
-        audioTemp.onloadedmetadata = () => resolve();
-      });
-
-      if (audioTemp.duration > 180) {
-        showModal("❌ Audio duration 3 minutes se ziada hai! Baraye meherbani choti audio upload karein.");
+      if (!text) {
+        showModal("Baraye meherbani text script dakhil karein!");
         return;
       }
 
       btn.disabled = true;
-      btn.innerText = "Changing Voice... Please wait ⏳";
+      btn.innerText = "Generating Audio... ⏳";
       outputCard.style.display = "none";
 
       try {
-        const base64Audio = await fileToBase64(file);
-
         const response = await fetch('/api', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            audioBase64: base64Audio,
-            voiceId: voiceId
-          })
+          body: JSON.stringify({ text, voiceId })
         });
 
         const data = await response.json();
@@ -274,15 +249,15 @@
           audioPlayer.src = data.audioUrl;
           downloadBtn.href = data.audioUrl;
           outputCard.style.display = "block";
-          showModal("✅ Voice kamyabi se change ho gayi hai!");
+          showModal("✅ Audio kamyabi se generate ho gayi hai!");
         } else {
-          showModal("❌ Fail Error: " + (data.error || "Voice convert nahi ho saki."));
+          showModal("❌ Fail Error: " + (data.error || "Audio generate nahi ho saki."));
         }
       } catch (err) {
-        showModal("❌ Server Error: Processing mein masla aaya.");
+        showModal("❌ Server Error: Connection mein masla aaya.");
       } finally {
         btn.disabled = false;
-        btn.innerText = "Convert Voice 🚀";
+        btn.innerText = "Generate Speech 🚀";
       }
     }
   </script>
