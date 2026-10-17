@@ -3,7 +3,6 @@ const axios = require('axios');
 const userVoicePreference = {};
 const DEFAULT_VOICE = "Natalie";
 
-// 15 Diverse Murf AI Voices
 const VOICE_OPTIONS = [
   { name: "Natalie (US Female)", id: "Natalie" },
   { name: "Marcus (US Male)", id: "Marcus" },
@@ -109,7 +108,7 @@ module.exports = async (req, res) => {
     const TELEGRAM_API = `https://api.telegram.org/bot${activeToken}`;
     const update = req.body || {};
 
-    // A. Handle Voice Selection via Inline Buttons
+    // A. Handle Voice Buttons
     if (update.callback_query) {
       const query = update.callback_query;
       const chatId = query.message.chat.id;
@@ -125,7 +124,7 @@ module.exports = async (req, res) => {
 
         await axios.post(`${TELEGRAM_API}/sendMessage`, {
           chat_id: chatId,
-          text: `✅ **Voice Selected:** ${selectedVoice}\n\nAb koi bhi text ya voice/audio message bhejein!`
+          text: `✅ **Voice Selected:** ${selectedVoice}\n\nAb koi bhi text message ya caption ke sath audio/voice note bhejein!`
         });
       } catch (e) {
         console.error("Callback Error:", e.message);
@@ -134,7 +133,7 @@ module.exports = async (req, res) => {
       return res.status(200).send('OK');
     }
 
-    // B. Handle Incoming Messages (Text, Voice, or Audio)
+    // B. Handle Text / Voice / Audio Messages
     if (update.message) {
       const chatId = update.message.chat.id;
       const message = update.message;
@@ -144,7 +143,7 @@ module.exports = async (req, res) => {
         try {
           await axios.post(`${TELEGRAM_API}/sendMessage`, {
             chat_id: chatId,
-            text: `Welcome to Murf AI Voice Bot! 🎙️\n\n- Text, Voice ya Audio message bhejein.\n- /voice command se 15 AI Voices mein se select karein.`
+            text: `Welcome to Murf AI Voice Bot! 🎙️\n\n- Text message bhejein to convert to speech.\n- Audio/Voice note ke sath caption likh kar bhej saktay hain.\n- /voice command se 15 AI Voices mein se select karein.`
           });
         } catch (e) {
           console.error("Start Error:", e.message);
@@ -152,9 +151,8 @@ module.exports = async (req, res) => {
         return res.status(200).send('OK');
       }
 
-      // Command: /voice (Interactive 15 Voices Keyboard Grid)
+      // Command: /voice
       if (message.text === '/voice') {
-        // Multi-row Grid Buttons Arrangement (3 per row)
         const inlineKeyboard = [];
         for (let i = 0; i < VOICE_OPTIONS.length; i += 3) {
           const row = VOICE_OPTIONS.slice(i, i + 3).map(v => ({
@@ -176,14 +174,19 @@ module.exports = async (req, res) => {
         return res.status(200).send('OK');
       }
 
-      // Handle Input (Text OR Voice/Audio Message)
-      let inputPrompt = message.text;
+      // Dynamic Input Text Extraction
+      let inputPrompt = message.text || message.caption;
 
-      // If user sends Voice Note or Audio file
+      // Agar user ne koi voice note ya audio bina caption ke bheja
       if (!inputPrompt && (message.voice || message.audio)) {
-        inputPrompt = message.caption || "Hello! Converting your voice message with Murf AI.";
+        await axios.post(`${TELEGRAM_API}/sendMessage`, {
+          chat_id: chatId,
+          text: "ℹ️ Please audio/voice note ke sath niche text caption likh kar bhejein ya direct text message type karein taake Murf AI use poori tarah convert kar sake!"
+        });
+        return res.status(200).send('OK');
       }
 
+      // Convert Text to Voice via Murf AI
       if (inputPrompt) {
         try {
           await axios.post(`${TELEGRAM_API}/sendChatAction`, {
@@ -194,7 +197,6 @@ module.exports = async (req, res) => {
           const selectedVoice = userVoicePreference[chatId] || DEFAULT_VOICE;
           const murfApiKey = process.env.MURF_API_KEY || "ap2_74e9410a-9a9c-469c-bea7-8bea790b9951";
 
-          // Generate Speech via Murf AI
           const murfResponse = await axios.post('https://api.murf.ai/v1/speech/generate', {
             text: inputPrompt,
             voiceId: selectedVoice,
@@ -218,7 +220,7 @@ module.exports = async (req, res) => {
           console.error('Murf AI Error:', err.response ? err.response.data : err.message);
           await axios.post(`${TELEGRAM_API}/sendMessage`, {
             chat_id: chatId,
-            text: "❌ Error processing audio. Please check your Murf API Key."
+            text: "❌ Error processing request. Please check your Murf API Key."
           });
         }
       }
@@ -231,6 +233,6 @@ module.exports = async (req, res) => {
 
   return res.status(200).json({ 
     status: "Active", 
-    message: "15 Voices & Audio Support Murf AI Telegram Engine Active!" 
+    message: "Murf AI Telegram Engine Active!" 
   });
 };
