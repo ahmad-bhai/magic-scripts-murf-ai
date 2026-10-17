@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Voice Changer (Speech-to-Speech)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 30px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      text-align: center;
+      margin-bottom: 20px;
+      color: #38bdf8;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+
+    select, input[type="file"] {
+      width: 100%;
+      padding: 12px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    .info-note {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-top: 5px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #0284c7;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #0369a1;
+    }
+
+    .output-card {
+      margin-top: 25px;
+      padding: 20px;
+      background: #0f172a;
+      border-radius: 12px;
+      display: none;
+      text-align: center;
+      border: 1px solid #334155;
+    }
+
+    audio {
+      width: 100%;
+      margin-top: 15px;
+    }
+
+    .download-btn {
+      margin-top: 15px;
+      background: #10b981;
+      text-decoration: none;
+      display: inline-block;
+      padding: 10px 20px;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+
+    .download-btn:hover {
+      background: #059669;
+    }
+
+    /* Custom Dialog Box Styling */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-card {
+      background: #1e293b;
+      padding: 25px;
+      border-radius: 12px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+      border: 1px solid #475569;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    .modal-card p {
+      margin-bottom: 20px;
+      font-size: 1.1rem;
+      color: #f1f5f9;
+    }
+
+    .modal-card button {
+      background: #38bdf8;
+      color: #0f172a;
+      width: auto;
+      padding: 8px 25px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>🎙️ AI Voice Changer</h1>
+
+    <div class="form-group">
+      <label for="audioFile">Upload Audio / Voice Recording:</label>
+      <input type="file" id="audioFile" accept="audio/*">
+      <div class="info-note">⚠️ Maximum limit: 3 Minutes (MP3, WAV, M4A, OGG)</div>
+    </div>
+
+    <div class="form-group">
+      <label for="voiceSelect">Target AI Voice (15 Voices):</label>
+      <select id="voiceSelect">
+        <option value="Priya" selected>Priya (Desi / Roman Urdu Female)</option>
+        <option value="Aarav">Aarav (Desi / Roman Urdu Male)</option>
+        <option value="Ananya">Ananya (Hindi Native Female)</option>
+        <option value="Kabir">Kabir (Hindi Native Male)</option>
+        <option value="Natalie">Natalie (US English Female)</option>
+        <option value="Marcus">Marcus (US English Male)</option>
+        <option value="Terrell">Terrell (UK Male)</option>
+        <option value="Julia">Julia (UK Female)</option>
+        <option value="Samantha">Samantha (US Casual Female)</option>
+        <option value="Ken">Ken (US Professional Male)</option>
+        <option value="Rachel">Rachel (US Soft Female)</option>
+        <option value="Miles">Miles (US Deep Male)</option>
+        <option value="Finley">Finley (UK Promo Female)</option>
+        <option value="George">George (UK Storyteller Male)</option>
+        <option value="Aria">Aria (US Energetic Female)</option>
+      </select>
+    </div>
+
+    <button id="convertBtn" onclick="processVoiceChanger()">Convert Voice 🚀</button>
+
+    <div class="output-card" id="outputCard">
+      <h3>🎉 Converted Voiceover:</h3>
+      <audio id="audioPlayer" controls></audio>
+      <br>
+      <a id="downloadBtn" class="download-btn" download="converted-voice.mp3" target="_blank">Download MP3 📥</a>
+    </div>
+  </div>
+
+  <!-- Custom Dialog Box -->
+  <div class="modal-overlay" id="customModal">
+    <div class="modal-card">
+      <p id="modalMessage">Notification Message</p>
+      <button onclick="closeModal()">OK</button>
+    </div>
+  </div>
+
+  <script>
+    function showModal(msg) {
+      document.getElementById('modalMessage').innerText = msg;
+      document.getElementById('customModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('customModal').style.display = 'none';
+    }
+
+    async function processVoiceChanger() {
+      const fileInput = document.getElementById('audioFile');
+      const voiceId = document.getElementById('voiceSelect').value;
+      const btn = document.getElementById('convertBtn');
+      const outputCard = document.getElementById('outputCard');
+      const audioPlayer = document.getElementById('audioPlayer');
+      const downloadBtn = document.getElementById('downloadBtn');
+
+      if (!fileInput.files || fileInput.files.length === 0) {
+        showModal("Baraye meherbani audio ya voice file upload karein!");
+        return;
+      }
+
+      const file = fileInput.files[0];
+
+      // Check 3 Minutes Audio Duration Limit
+      const audioTemp = new Audio();
+      audioTemp.src = URL.createObjectURL(file);
+      
+      await new Promise((resolve) => {
+        audioTemp.onloadedmetadata = () => {
+          resolve();
+        };
+      });
+
+      if (audioTemp.duration > 180) { // 180 seconds = 3 minutes
+        showModal("❌ Audio duration 3 minutes se ziada hai! Baraye meherbani 3 minutes se choti audio upload karein.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = "Changing Voice... Please wait ⏳";
+      outputCard.style.display = "none";
+
+      const formData = new FormData();
+      formData.append('audio', file);
+      formData.append('voiceId', voiceId);
+
+      try {
+        const response = await fetch('/api', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.audioUrl) {
+          audioPlayer.src = data.audioUrl;
+          downloadBtn.href = data.audioUrl;
+          outputCard.style.display = "block";
+          showModal("✅ Voice kamyabi se change ho gayi hai!");
+        } else {
+          showModal("❌ Fail Error: " + (data.error || "Voice convert nahi ho saki. API Key balance verify karein."));
+        }
+      } catch (err) {
+        showModal("❌ Server Error: Processing mein masla aaya.");
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Convert Voice 🚀";
+      }
+    }
+  </script>
+</body>
+</html>
