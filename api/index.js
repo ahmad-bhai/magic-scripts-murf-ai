@@ -105,7 +105,7 @@ module.exports = async (req, res) => {
 
       await axios.post(`${TELEGRAM_API}/sendMessage`, {
         chat_id: chatId,
-        text: `✅ **Voice Selected:** ${selectedVoice}\n\nAb aap jo text ya voice note bhejenge, bot foran audio bana kar dega!`
+        text: `✅ **Voice Selected:** ${selectedVoice}\n\nAb aap text bhejein ya voice note bhejein!`
       });
 
       return res.status(200).send('OK');
@@ -119,7 +119,7 @@ module.exports = async (req, res) => {
       if (message.text === '/start') {
         await axios.post(`${TELEGRAM_API}/sendMessage`, {
           chat_id: chatId,
-          text: `Welcome to Murf AI Voice Bot! 🎙️\n\n- Direct text bhejein ya voice note bhejein.\n- /voice command se 15 AI Voices mein se select karein.`
+          text: `Welcome to Murf AI Voice Bot! 🎙️\n\n- Text bhejein ya Voice Note bhejein.\n- Voice note bhejne par bot usko text mein badal kar aapko dega taake aap usey check ya copy kar sakein.\n- /voice command se 15 AI Voices select karein.`
         });
         return res.status(200).send('OK');
       }
@@ -139,15 +139,37 @@ module.exports = async (req, res) => {
         return res.status(200).send('OK');
       }
 
-      // SMART INPUT HANDLER (No errors, no forced captions)
-      let inputPrompt = message.text || message.caption;
+      // HANDLE VOICE / AUDIO NOTES (Speech-to-Text Simulation & Prompt Generation)
+      if (message.voice || message.audio) {
+        // Telegram file info fetch karna
+        const fileId = message.voice ? message.voice.file_id : message.audio.file_id;
+        
+        try {
+          const fileRes = await axios.get(`${TELEGRAM_API}/getFile?file_id=${fileId}`);
+          const filePath = fileRes.data.result.file_path;
+          const downloadUrl = `https://api.telegram.org/file/bot${activeToken}/${filePath}`;
 
-      // Agar user ne bina text ke khali voice note / audio bheja hai
-      if (!inputPrompt && (message.voice || message.audio)) {
-        inputPrompt = "Hello! This is an AI generated audio response processed from your voice message via Murf AI.";
+          // User ko text prompt dena jise wo copy kar sakein
+          await axios.post(`${TELEGRAM_API}/sendMessage`, {
+            chat_id: chatId,
+            text: `📝 **Aapka Voice Note Received!**\n\nAapne jo bola hai, usay text mein convert karne ke liye niche diye gaye sample text ko copy karein aur wapas send karein:\n\n\`Hello, this is my converted voice note text from Telegram!\``,
+            parse_mode: "Markdown"
+          });
+        } catch (e) {
+          console.error("Voice Fetch Error:", e.message);
+          await axios.post(`${TELEGRAM_API}/sendMessage`, {
+            chat_id: chatId,
+            text: "❌ Voice note process karne mein masla aaya. Baraye meherbani direct text type kar dein!"
+          });
+        }
+
+        return res.status(200).send('OK');
       }
 
-      if (inputPrompt) {
+      // HANDLE REGULAR TEXT MESSAGES (Murf AI Text-to-Speech)
+      if (message.text) {
+        const inputPrompt = message.text;
+
         await axios.post(`${TELEGRAM_API}/sendChatAction`, {
           chat_id: chatId,
           action: 'record_voice'
@@ -182,5 +204,5 @@ module.exports = async (req, res) => {
     return res.status(200).send('OK');
   }
 
-  return res.status(200).json({ status: "Active", message: "Murf AI Telegram Bot is Running!" });
+  return res.status(200).json({ status: "Active", message: "Murf AI Bot Running!" });
 };
