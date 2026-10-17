@@ -215,6 +215,15 @@
       document.getElementById('customModal').style.display = 'none';
     }
 
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = error => reject(error);
+      });
+    }
+
     async function processVoiceChanger() {
       const fileInput = document.getElementById('audioFile');
       const voiceId = document.getElementById('voiceSelect').value;
@@ -249,14 +258,17 @@
       btn.innerText = "Changing Voice... Please wait ⏳";
       outputCard.style.display = "none";
 
-      const formData = new FormData();
-      formData.append('audio', file);
-      formData.append('voiceId', voiceId);
-
       try {
+        const base64Audio = await fileToBase64(file);
+
         const response = await fetch('/api', {
           method: 'POST',
-          body: formData
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            audioBase64: base64Audio,
+            fileName: file.name,
+            voiceId: voiceId
+          })
         });
 
         const data = await response.json();
